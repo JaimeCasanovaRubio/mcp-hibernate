@@ -5,24 +5,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.dam.accesodatos.ra3.HibernateUserService;
-import com.dam.accesodatos.model.User;
-import com.dam.accesodatos.model.UserCreateDto;
+import com.dam.accesodatos.ra3.HibernateNpcService;
+import com.dam.accesodatos.model.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Controlador REST que expone las herramientas MCP via HTTP para operaciones Hibernate/JPA.
+ * Controlador REST que expone las herramientas MCP via HTTP para operaciones
+ * Hibernate/JPA.
  *
- * CAMBIOS vs RA2:
- * - RA2: Usa DatabaseUserService (JDBC)
- * - RA3: Usa HibernateUserService (Hibernate/JPA)
+ * CAMBIOS vs versión anterior (User):
+ * - Ahora gestiona NPCs en lugar de Users
+ * - Incluye endpoints para Pedidos e Ingredientes
  *
  * Proporciona endpoints para que los LLMs puedan:
  * - Listar herramientas Hibernate/JPA disponibles
- * - Ejecutar operaciones ORM específicas
+ * - Ejecutar operaciones ORM específicas con NPCs
  * - Obtener información sobre el servidor MCP
  */
 @RestController
@@ -33,7 +34,7 @@ public class McpServerController {
     private static final Logger logger = LoggerFactory.getLogger(McpServerController.class);
 
     @Autowired
-    private HibernateUserService hibernateUserService;  // ← CAMBIO: HibernateUserService en lugar de DatabaseUserService
+    private HibernateNpcService hibernateNpcService;
 
     @Autowired
     private McpToolRegistry toolRegistry;
@@ -45,7 +46,7 @@ public class McpServerController {
     public ResponseEntity<Map<String, String>> getHealth() {
         Map<String, String> health = new HashMap<>();
         health.put("status", "UP");
-        health.put("service", "MCP Server RA3 Hibernate/JPA");  // ← CAMBIO
+        health.put("service", "MCP Server RA3 Hibernate/JPA - NPCs");
 
         return ResponseEntity.ok(health);
     }
@@ -71,8 +72,8 @@ public class McpServerController {
         Map<String, Object> response = new HashMap<>();
         response.put("tools", toolsList);
         response.put("count", toolsList.size());
-        response.put("server", "MCP Server - RA3 Hibernate/JPA DAM");  // ← CAMBIO
-        response.put("version", "1.0.0");
+        response.put("server", "MCP Server - RA3 Hibernate/JPA NPCs DAM");
+        response.put("version", "2.0.0");
 
         return ResponseEntity.ok(response);
     }
@@ -82,12 +83,12 @@ public class McpServerController {
     /**
      * Prueba el EntityManager de Hibernate/JPA
      */
-    @PostMapping("/test_entity_manager")  // ← CAMBIO: test_entity_manager en lugar de test_connection
+    @PostMapping("/test_entity_manager")
     public ResponseEntity<Map<String, Object>> testEntityManager() {
         logger.debug("Probando EntityManager");
 
         try {
-            String result = hibernateUserService.testEntityManager();
+            String result = hibernateNpcService.testEntityManager();
 
             Map<String, Object> response = new HashMap<>();
             response.put("tool", "test_entity_manager");
@@ -108,33 +109,30 @@ public class McpServerController {
     }
 
     /**
-     * Crea un nuevo usuario usando persist()
+     * Crea un nuevo NPC usando persist()
      */
-    @PostMapping("/create_user")
-    public ResponseEntity<Map<String, Object>> createUser(@RequestBody Map<String, String> request) {
-        logger.debug("Creando usuario con Hibernate");
+    @PostMapping("/create_npc")
+    public ResponseEntity<Map<String, Object>> createNpc(@RequestBody Map<String, String> request) {
+        logger.debug("Creando NPC con Hibernate");
 
         try {
-            String name = request.get("name");
-            String email = request.get("email");
-            String department = request.get("department");
-            String role = request.get("role");
+            String nombre = request.get("nombre");
 
-            UserCreateDto dto = new UserCreateDto(name, email, department, role);
-            User user = hibernateUserService.createUser(dto);
+            NpcCreateDto dto = new NpcCreateDto(nombre);
+            Npc npc = hibernateNpcService.createNpc(dto);
 
             Map<String, Object> response = new HashMap<>();
-            response.put("tool", "create_user");
-            response.put("result", user);
+            response.put("tool", "create_npc");
+            response.put("result", npc);
             response.put("status", "success");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error creando usuario", e);
+            logger.error("Error creando NPC", e);
 
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error creando usuario: " + e.getMessage());
-            error.put("tool", "create_user");
+            error.put("error", "Error creando NPC: " + e.getMessage());
+            error.put("tool", "create_npc");
             error.put("status", "error");
 
             return ResponseEntity.status(500).body(error);
@@ -142,28 +140,28 @@ public class McpServerController {
     }
 
     /**
-     * Busca un usuario por ID usando find()
+     * Busca un NPC por ID usando find()
      */
-    @PostMapping("/find_user_by_id")
-    public ResponseEntity<Map<String, Object>> findUserById(@RequestBody Map<String, Object> request) {
-        logger.debug("Buscando usuario por ID");
+    @PostMapping("/find_npc_by_id")
+    public ResponseEntity<Map<String, Object>> findNpcById(@RequestBody Map<String, Object> request) {
+        logger.debug("Buscando NPC por ID");
 
         try {
-            Long userId = ((Number) request.get("userId")).longValue();
-            User user = hibernateUserService.findUserById(userId);
+            Long npcId = ((Number) request.get("npcId")).longValue();
+            Npc npc = hibernateNpcService.findNpcById(npcId);
 
             Map<String, Object> response = new HashMap<>();
-            response.put("tool", "find_user_by_id");
-            response.put("result", user);
+            response.put("tool", "find_npc_by_id");
+            response.put("result", npc);
             response.put("status", "success");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error buscando usuario", e);
+            logger.error("Error buscando NPC", e);
 
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error buscando usuario: " + e.getMessage());
-            error.put("tool", "find_user_by_id");
+            error.put("error", "Error buscando NPC: " + e.getMessage());
+            error.put("tool", "find_npc_by_id");
             error.put("status", "error");
 
             return ResponseEntity.status(500).body(error);
@@ -171,28 +169,28 @@ public class McpServerController {
     }
 
     /**
-     * Obtiene todos los usuarios usando JPA Repository
+     * Obtiene todos los NPCs usando JPA Repository
      */
-    @PostMapping("/find_all_users")
-    public ResponseEntity<Map<String, Object>> findAllUsers() {
-        logger.debug("Obteniendo todos los usuarios");
+    @PostMapping("/find_all_npcs")
+    public ResponseEntity<Map<String, Object>> findAllNpcs() {
+        logger.debug("Obteniendo todos los NPCs");
 
         try {
-            List<User> users = hibernateUserService.findAll();
+            List<Npc> npcs = hibernateNpcService.findAll();
 
             Map<String, Object> response = new HashMap<>();
-            response.put("tool", "find_all_users");
-            response.put("result", users);
-            response.put("count", users.size());
+            response.put("tool", "find_all_npcs");
+            response.put("result", npcs);
+            response.put("count", npcs.size());
             response.put("status", "success");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error obteniendo usuarios", e);
+            logger.error("Error obteniendo NPCs", e);
 
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error obteniendo usuarios: " + e.getMessage());
-            error.put("tool", "find_all_users");
+            error.put("error", "Error obteniendo NPCs: " + e.getMessage());
+            error.put("tool", "find_all_npcs");
             error.put("status", "error");
 
             return ResponseEntity.status(500).body(error);
@@ -200,29 +198,104 @@ public class McpServerController {
     }
 
     /**
-     * Busca usuarios por departamento usando JPQL
+     * Busca NPCs activos usando JPQL
      */
-    @PostMapping("/find_users_by_department")
-    public ResponseEntity<Map<String, Object>> findUsersByDepartment(@RequestBody Map<String, String> request) {
-        logger.debug("Buscando usuarios por departamento");
+    @PostMapping("/find_active_npcs")
+    public ResponseEntity<Map<String, Object>> findActiveNpcs() {
+        logger.debug("Buscando NPCs activos");
 
         try {
-            String department = request.get("department");
-            List<User> users = hibernateUserService.findUsersByDepartment(department);
+            List<Npc> npcs = hibernateNpcService.findActiveNpcs();
 
             Map<String, Object> response = new HashMap<>();
-            response.put("tool", "find_users_by_department");
-            response.put("result", users);
-            response.put("count", users.size());
+            response.put("tool", "find_active_npcs");
+            response.put("result", npcs);
+            response.put("count", npcs.size());
             response.put("status", "success");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error buscando usuarios por departamento", e);
+            logger.error("Error buscando NPCs activos", e);
 
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error buscando usuarios por departamento: " + e.getMessage());
-            error.put("tool", "find_users_by_department");
+            error.put("error", "Error buscando NPCs activos: " + e.getMessage());
+            error.put("tool", "find_active_npcs");
+            error.put("status", "error");
+
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    /**
+     * Añade un pedido a un NPC
+     */
+    @PostMapping("/add_pedido_to_npc")
+    public ResponseEntity<Map<String, Object>> addPedidoToNpc(@RequestBody Map<String, Object> request) {
+        logger.debug("Añadiendo pedido a NPC");
+
+        try {
+            Long npcId = ((Number) request.get("npcId")).longValue();
+            String comentario = (String) request.get("comentario");
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> ingredientesRaw = (List<Map<String, Object>>) request.get("ingredientes");
+
+            PedidoCreateDto dto = new PedidoCreateDto(comentario);
+
+            if (ingredientesRaw != null) {
+                List<IngredienteDto> ingredientes = new ArrayList<>();
+                for (Map<String, Object> ing : ingredientesRaw) {
+                    String nombre = (String) ing.get("nombre");
+                    Integer cantidad = ing.get("cantidad") != null ? ((Number) ing.get("cantidad")).intValue() : 1;
+                    ingredientes.add(new IngredienteDto(nombre, cantidad));
+                }
+                dto.setIngredientes(ingredientes);
+            }
+
+            Pedido pedido = hibernateNpcService.addPedidoToNpc(npcId, dto);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("tool", "add_pedido_to_npc");
+            response.put("result", pedido);
+            response.put("status", "success");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error añadiendo pedido", e);
+
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Error añadiendo pedido: " + e.getMessage());
+            error.put("tool", "add_pedido_to_npc");
+            error.put("status", "error");
+
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    /**
+     * Obtiene los pedidos de un NPC
+     */
+    @PostMapping("/find_pedidos_by_npc")
+    public ResponseEntity<Map<String, Object>> findPedidosByNpc(@RequestBody Map<String, Object> request) {
+        logger.debug("Obteniendo pedidos de NPC");
+
+        try {
+            Long npcId = ((Number) request.get("npcId")).longValue();
+            List<Pedido> pedidos = hibernateNpcService.findPedidosByNpc(npcId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("tool", "find_pedidos_by_npc");
+            response.put("result", pedidos);
+            response.put("count", pedidos.size());
+            response.put("status", "success");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error obteniendo pedidos", e);
+
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Error obteniendo pedidos: " + e.getMessage());
+            error.put("tool", "find_pedidos_by_npc");
             error.put("status", "error");
 
             return ResponseEntity.status(500).body(error);
