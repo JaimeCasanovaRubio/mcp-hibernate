@@ -82,7 +82,7 @@ public class HibernateNpcServiceImpl implements HibernateNpcService {
      * ✅ EJEMPLO IMPLEMENTADO 2/7: INSERT con persist()
      *
      * Muestra cómo Hibernate simplifica INSERT:
-     * - NO necesitas escribir SQL INSERT
+     * - NO necesitas escribi SQL INSERT
      * - NO necesitas mapear parámetros manualmente
      * - NO necesitas getGeneratedKeys()
      * - Hibernate lo hace todo automáticamente
@@ -174,7 +174,7 @@ public class HibernateNpcServiceImpl implements HibernateNpcService {
 
     @Override
     @Transactional
-    public boolean deleteNpc(Long id) {
+    public boolean deleteNpc(Long id) { // MIO
         // TODO CE3.e: Implementar deleteNpc()
         //
         // Guía de implementación:
@@ -198,8 +198,13 @@ public class HibernateNpcServiceImpl implements HibernateNpcService {
         // - RA2: DELETE FROM npcs WHERE id = ?
         // - RA3: entityManager.remove(npc)
 
-        throw new UnsupportedOperationException("TODO CE3.e: Implementar deleteNpc() - " +
-                "Usar find() para buscar y remove() para eliminar");
+        Npc npc = findNpcById(id);
+        if (npc == null) {
+            return false;
+        }
+        entityManager.remove(npc);
+        return true;
+
     }
 
     /**
@@ -335,8 +340,48 @@ public class HibernateNpcServiceImpl implements HibernateNpcService {
         //
         // VENTAJA vs RA2: Parámetros nombrados evitan SQL injection
 
-        throw new UnsupportedOperationException("TODO CE3.f: Implementar searchNpcs() - " +
-                "Usar JPQL dinámico con parámetros nombrados para filtros opcionales");
+        StringBuilder jpql = new StringBuilder("SELECT n FROM Npc n WHERE 1=1");
+        if (queryDto.getNombre() != null) {
+            jpql.append(" AND LOWER(n.nombre) LIKE LOWER(:nombre)");
+        }
+        if (queryDto.getActivo() != null) {
+            jpql.append(" AND n.activo = :activo");
+        }
+
+        TypedQuery<Npc> query = entityManager.createQuery(jpql.toString(), Npc.class);
+
+        if (queryDto.getNombre() != null) {
+            query.setParameter("nombre", "%" + queryDto.getNombre() + "%");
+        }
+        if (queryDto.getActivo() != null) {
+            query.setParameter("activo", queryDto.getActivo());
+        }
+        return query.getResultList();
+
+    }
+
+    @Override
+    public long countActiveNpcs() {
+        // TODO CE3.f: Implementar countActiveNpcs()
+        //
+        // Guía de implementación:
+        // 1. Crear JPQL COUNT query:
+        // String jpql = "SELECT COUNT(n) FROM Npc n WHERE n.activo = true";
+        //
+        // 2. Crear TypedQuery<Long>:
+        // TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class);
+        //
+        // 3. Ejecutar y retornar:
+        // return query.getSingleResult();
+        //
+        // DIFERENCIA vs RA2:
+        // - RA2: CallableStatement para stored procedure o COUNT manual
+        // - RA3: JPQL COUNT query directo (más simple)
+
+        String jpql = "SELECT COUNT(n) FROM Npc n WHERE n.activo = true";
+        TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class);
+        return query.getSingleResult();
+
     }
 
     // ========== CE3.g: Transacciones ==========
@@ -369,29 +414,10 @@ public class HibernateNpcServiceImpl implements HibernateNpcService {
         // - No necesitas rollback() manual en catch
         // - Spring lo hace automáticamente según el resultado del método
 
-        throw new UnsupportedOperationException("TODO CE3.g: Implementar transferData() - " +
-                "Usar @Transactional con múltiples persist(), Spring maneja commit/rollback automáticamente");
+        for (Npc npc : npcs) {
+            entityManager.persist(npc);
+        }
+        return true;
     }
 
-    @Override
-    public long countActiveNpcs() {
-        // TODO CE3.f: Implementar countActiveNpcs()
-        //
-        // Guía de implementación:
-        // 1. Crear JPQL COUNT query:
-        // String jpql = "SELECT COUNT(n) FROM Npc n WHERE n.activo = true";
-        //
-        // 2. Crear TypedQuery<Long>:
-        // TypedQuery<Long> query = entityManager.createQuery(jpql, Long.class);
-        //
-        // 3. Ejecutar y retornar:
-        // return query.getSingleResult();
-        //
-        // DIFERENCIA vs RA2:
-        // - RA2: CallableStatement para stored procedure o COUNT manual
-        // - RA3: JPQL COUNT query directo (más simple)
-
-        throw new UnsupportedOperationException("TODO CE3.f: Implementar countActiveNpcs() - " +
-                "Usar JPQL 'SELECT COUNT(n) FROM Npc n WHERE n.activo = true'");
-    }
 }
